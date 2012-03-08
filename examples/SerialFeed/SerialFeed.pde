@@ -3,6 +3,7 @@
 // for each datastream entry.
 //
 // Adapted by Dan Malec from the Gutenbird sketch written by Adafruit Industries.
+//   Original Gutenbird sketch https://github.com/adafruit/Adafruit-Tweet-Receipt
 //
 // MIT license.
 //
@@ -25,9 +26,14 @@ IPAddress fallbackIpAddress(10,0,1,150);
 EthernetClient client;
 
 // Pachube config
+//
+// apiKey should be set to your Pachube API key
+// feedId should be set to the feed you will be monitoring
+// pollingInterval specifies milliseconds between polls of the Pachube server,
+//                 which will limit you to 100/minute maximum
 char *apiKey = "";
-char *feedId = "23716";
-const unsigned long pollingInterval = 60L * 1000L; // Note: Pachube server will allow 100/min max
+char *feedId = "23716";  // Boston air quality feed
+const unsigned long pollingInterval = 60L * 1000L;
 PatchPress patchPress(&client, apiKey, feedId);
 
 void printEntryToSerial(char *dataStreamId, char *tstamp, double minValue, double maxValue, double curValue) {

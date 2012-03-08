@@ -1,8 +1,7 @@
 // --------------------------------------------------------------------------------
-// Monitors one Pachube feed for changes, and calls back a registered function
-// for each datastream entry.
-//
+// Monitors a Pachube feed for changes and prints them to the Adafruit IoT Printer.
 // Adapted by Dan Malec from the Gutenbird sketch written by Adafruit Industries.
+//   Original Gutenbird sketch https://github.com/adafruit/Adafruit-Tweet-Receipt
 //
 // MIT license.
 //
@@ -22,6 +21,11 @@
 //
 //
 // --------------------------------------------------------------------------------
+// Dependencies
+// --------------------------------------------------------------------------------
+// Adafruit Industries' Thermal Printer library:
+//       https://github.com/adafruit/Adafruit-Thermal-Printer-Library
+// --------------------------------------------------------------------------------
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SoftwareSerial.h>
@@ -34,9 +38,14 @@ IPAddress fallbackIpAddress(10,0,1,150);
 EthernetClient client;
 
 // Pachube config
+//
+// apiKey should be set to your Pachube API key
+// feedId should be set to the feed you will be monitoring
+// pollingInterval specifies milliseconds between polls of the Pachube server,
+//                 which will limit you to 100/minute maximum
 char *apiKey = "";
-char *feedId = "23716";
-const unsigned long pollingInterval = 60L * 1000L; // Note: Pachube server will allow 100/min max
+char *feedId = "23716";  // Boston air quality feed
+const unsigned long pollingInterval = 60L * 1000L;
 PatchPress patchPress(&client, apiKey, feedId);
 
 // Printer config

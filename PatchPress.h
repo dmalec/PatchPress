@@ -3,6 +3,7 @@
 // for each datastream entry.
 //
 // Adapted by Dan Malec from the Gutenbird sketch written by Adafruit Industries.
+//   Original Gutenbird sketch https://github.com/adafruit/Adafruit-Tweet-Receipt
 //
 // MIT license.
 //
