@@ -1,7 +1,7 @@
 PatchPress
 ==========
 
-PatchPress allows an Arduino sketch to talk to Pachube and retrieve a data feed
+PatchPress allows an Arduino sketch to talk to [Pachube](https://pachube.com/) and retrieve a data feed
 at regular intervals.  It assumes the user has a Pachube account and an API key.
 
 Requirements
