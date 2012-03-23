@@ -26,7 +26,9 @@ class PatchPress {
   public:
   PatchPress(EthernetClient *client, char *apiKey, char *feedId, unsigned long connectTimeout=15000L, unsigned long responseTimeout=15000L);
 
+    void setDatastream(char *datastreamId);
     void registerDatastreamEntryCallback(void (*datastreamEntryCallback)(char *, char *, double, double, double));
+
     void requestFeed();
 
   private:
@@ -35,14 +37,16 @@ class PatchPress {
     // Configuration
     char *apiKey;
     char *feedId;
+    char *datastreamId;
     unsigned long connectTimeout;
     unsigned long responseTimeout;
 
     // Callback To Process Entry Value
     void (*datastreamEntryCallback)(char *, char *, double, double, double);
 
-    // Data Feed Data
-    char lastTstamp[25];       // Time stamp in "ddd,DDMMMYYYYHH:MM:SSGMT" format
+    // Last Read Data
+    char lastTstamp[40];       // When reading feeds, time stamp in "ddd,DDMMMYYYYHH:MM:SSGMT" format
+                               // When reading datastream, 32 character etag
 
     // Data Stream Entry Data
     char readAt[28];           // Time stamp in "YYYY-MM-DDTHH:MM:SS.ssssssZ\0" format
@@ -52,6 +56,7 @@ class PatchPress {
     double curValue;           // Current value
 
     // JSON Parsing
+    boolean isDataObjectRoot;  // Flag if the root object is also the data object
     uint8_t datastreamsDepth;  // Depth of object parse
     char name[32];             // Temp space for name:value parsing
     char value[32];            // Temp space for name:value parsing

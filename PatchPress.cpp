@@ -20,15 +20,24 @@
 //! Class constructor.
 /*!
   The class constructor saves the configuration parameters.
+  
+  \param client a pointer to the Ethernet client object
+  \param apiKey the string developer API key
+  \param feedId the string feed ID
+  \param connectTimeout the amount of time to wait when connecting to pachube before timing out
+  \param responseTimeout the amount of time to wait for a response from pachube before timing out
  */
 PatchPress::PatchPress(EthernetClient *client, char *apiKey, char *feedId, unsigned long connectTimeout, unsigned long responseTimeout) {
   this->client = client;
   this->apiKey = apiKey;
   this->feedId = feedId;
+  this->datastreamId = NULL;
   this->connectTimeout = connectTimeout;
   this->responseTimeout = responseTimeout;
 
   datastreamEntryCallback = NULL;
+  isDataObjectRoot = false;
+
   memset(lastTstamp, '\0', sizeof(lastTstamp));
   memset(readAt, '\0', sizeof(readAt));
   memset(dataStreamId, '\0', sizeof(dataStreamId));
@@ -38,12 +47,30 @@ PatchPress::PatchPress(EthernetClient *client, char *apiKey, char *feedId, unsig
 
 //! Register a callback for when the parser sees a datastream entry.
 /*!
+  Pass in a function pointer to be called when the end of a datastream entry is reached in the JSON feed.
+
+  \param datastreamEntryCallback the function pointer of the callback
 */
 void PatchPress::registerDatastreamEntryCallback(void (*datastreamEntryCallback)(char *, char *, double, double, double)) {
   this->datastreamEntryCallback = datastreamEntryCallback;
 }
 
+//! Set a datastream ID to filter down to from the overall feed.
+/*!
+  \param datastreamId the string datastream ID to filter by in addition to the feed ID
+*/
+void PatchPress::setDatastream(char *datastreamId) {
+  this->datastreamId = datastreamId;
+  if (datastreamId != NULL) {
+    isDataObjectRoot = true;
+  }
+}
 
+//! Request data from pachube.
+/*!
+  Request either the feed JSON or the datastream JSON and callback the registered function pointer
+  on the returned data.  If the data has not changed since the last poll, do nothing.
+ */
 void PatchPress::requestFeed() {
   unsigned long startTime;
   boolean updated;
@@ -56,8 +83,13 @@ void PatchPress::requestFeed() {
 
   if(client->connected()) { // Success!
     Serial.print("OK\r\nIssuing HTTP request...");
+
     client->print("GET /v2/feeds/");
     client->print(feedId);
+    if (datastreamId != NULL) {
+      client->print("/datastreams/");
+      client->print(datastreamId);
+    }
     client->print(".json");
     client->print(" HTTP/1.1\r\nHost: api.pachube.com");
     client->print("\r\nX-PachubeApiKey: ");
@@ -88,16 +120,30 @@ void PatchPress::requestFeed() {
   }
 }
 
+//! Check the header fields in the HTTP response to see if the data is modified since the last read.
+/*!
+  If a feed is being requested, check the Last-Modified header.  If a datastream entry is being requested,
+  check the ETag header.
+ */
 boolean PatchPress::checkLastModifiedHeader() {
   boolean parsing = true;
+  boolean foundHeader = false;
   int i = 0, c;
-  char tstamp[25]; // ddd,DDMMMYYYYHH:MM:SSGMT
-  
-  memset(tstamp,   0, sizeof(tstamp));
-  if (client->findUntil("Last-Modified:", "\r\n\r\n")) {
-    while (parsing) {
+  char tstamp[40]; // ddd,DDMMMYYYYHH:MM:SSGMT or 32 character etag
+
+  memset(tstamp, 0, sizeof(tstamp));
+
+  if (datastreamId == NULL) {
+    foundHeader = client->findUntil("Last-Modified:", "\r\n\r\n");
+  } else {
+    foundHeader = client->findUntil("ETag:", "\r\n\r\n");
+  }
+
+  if (foundHeader) {
+    while (parsing && client->available()) {
       c = client->peek();
-      if (c == '\r' || i > 24) {
+      if (c == '\r' || i >= 38) {
+        tstamp[i] = '\0';
         parsing = false;
       } else if (!isspace(c)) {
         tstamp[i++] = (char)client->read();
@@ -107,7 +153,7 @@ boolean PatchPress::checkLastModifiedHeader() {
     }
   }
   
-  if (!strncasecmp(tstamp, lastTstamp, 25)) {
+  if (!strncasecmp(tstamp, lastTstamp, sizeof(lastTstamp))) {
     return false;
   } else {
     strncpy(lastTstamp, tstamp, sizeof(lastTstamp)-1);
@@ -126,7 +172,7 @@ boolean PatchPress::jsonParse(int depth, byte endChar) {
 
     if(c == '{') { // Object follows
       if(!jsonParse(depth + 1, '}')) return false;
-      if(!depth)                     return true; // End of file
+      if(!depth && !isDataObjectRoot) return true; // End of file
       if(depth == datastreamsDepth) { // End of object in results list
 
 	// Notify callback of entry data
@@ -139,6 +185,7 @@ boolean PatchPress::jsonParse(int depth, byte endChar) {
         memset(dataStreamId, '\0', sizeof(dataStreamId));
         minValue = maxValue = curValue = 0.0;
       }
+      if(!depth && isDataObjectRoot) return true; // End of file
     } else if(c == '[') { // Array follows
       if((!datastreamsDepth) && (!strcasecmp(name, "datastreams")))
         datastreamsDepth = depth + 1;

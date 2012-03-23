@@ -1,3 +1,4 @@
 PatchPress	KEYWORD1
 registerDatastreamEntryCallback	KEYWORD2
 requestFeed	KEYWORD2
+setDatastream   KEYWORD2
